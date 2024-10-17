@@ -25,9 +25,23 @@ class UserSeed extends Seeder
             'whatsapp' => '83991236636',
             'cpf_cnpj' => '13754674412',
             'birth_date' => '2001-12-18',
-            'company_position_id' => 1,
-            'sector_id' => null,
+            'is_admin' => true,
             'is_active' => true,
+        ]);
+
+        User::firstOrCreate([
+            'email' => 'user@user',
+        ],
+        [
+            'name' => 'User',
+            'email' => 'user@user',
+            'password' => Hash::make('user'),
+            'phone' => '83991236636',
+            'whatsapp' => '83993236636',
+            'cpf_cnpj' => '13754676412',
+            'birth_date' => '2001-12-18',
+            'is_admin' => true,
+            'is_active' => false,
         ]);
     }
 }

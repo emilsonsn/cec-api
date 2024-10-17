@@ -31,9 +31,9 @@ class User extends Authenticatable implements JWTSubject
         'whatsapp',
         'cpf_cnpj',
         'birth_date',
-        'company_position_id',
-        'sector_id',
         'is_active',
+        'is_admin',
+        'file_limit',
         'photo'
     ];
 
@@ -65,13 +65,5 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [];
-    }
-
-    public function sector(){
-        return $this->belongsTo(Sector::class);
-    }
-
-    public function companyPosition(){
-        return $this->belongsTo(CompanyPosition::class);
     }
 }

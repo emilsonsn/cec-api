@@ -101,10 +101,10 @@ class UserService
                 'whatsapp' => 'nullable|string',
                 'cpf_cnpj' => 'nullable|string',
                 'birth_date' => 'nullable|date',
-                'company_position_id' => 'nullable|integer',
-                'sector_id' => 'nullable|integer',
+                'file_limit' => 'nullable|integer|default:0',
                 'is_active' => 'nullable|boolean|default:true',
-                'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // validação para a foto
+                'is_admin' => 'nullable|boolean|default:false',
+                'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ];
     
             $password = str_shuffle(Str::upper(Str::random(1)) . rand(0, 9) . Str::random(1, '?!@#$%^&*') . Str::random(5));
@@ -133,7 +133,6 @@ class UserService
             return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
         }
     }
-    
 
     public function update($request, $user_id)
     {
@@ -147,9 +146,9 @@ class UserService
                 'whatsapp' => 'nullable|string',
                 'cpf_cnpj' => 'nullable|string',
                 'birth_date' => 'nullable|date',
-                'company_position_id' => 'nullable|integer',
-                'sector_id' => 'nullable|integer',
+                'file_limit' => 'nullable|integer|default:0',
                 'is_active' => 'nullable|boolean|default:true',
+                'is_admin' => 'nullable|boolean|default:false',
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ];
 
