@@ -190,9 +190,9 @@ class UserService
             $user->file_limit = $validatedData['file_limit'];
             $user->save();
     
-            return response()->json(['status' => true, 'data' => $user], 200);
+            return ['status' => true, 'data' => $user];
         } catch (Exception $error) {
-            return response()->json(['status' => false, 'error' => $error->getMessage()], $error->getCode() ?: 400);
+            return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => $error->getCode()];
         }
     }
 
