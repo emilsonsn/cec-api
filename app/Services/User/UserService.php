@@ -9,8 +9,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordRecoveryMail;
 use App\Mail\WelcomeMail;
-use App\Models\CompanyPosition;
-use App\Models\Sector;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -35,7 +33,7 @@ class UserService
             $perPage = $request->input('take', 10);
             $search_term = $request->search_term;
 
-            $users = User::with('companyPosition', 'sector');
+            $users = User::with('files');
 
             if(isset($search_term)){
                 $users->where('name', 'LIKE', "%{$search_term}%")
@@ -68,28 +66,6 @@ class UserService
         }
     }
 
-    public function cards()
-    {
-        try {
-            $users = User::selectRaw('COUNT(*) as total')
-                ->selectRaw('SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active')
-                ->first();
-
-            $users->inactive = $users->total - $users->active;
-
-            return [
-                'status' => true,
-                'data' => [
-                    'total' => $users->total,
-                    'active' => $users->active,
-                    'inactive' => $users->inactive
-                ]
-            ];
-        } catch (Exception $error) {
-            return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
-        }
-    }
-
     public function create($request)
     {
         try {
@@ -101,7 +77,7 @@ class UserService
                 'whatsapp' => 'nullable|string',
                 'cpf_cnpj' => 'nullable|string',
                 'birth_date' => 'nullable|date',
-                'file_limit' => 'nullable|integer|default:0',
+                'file_limit' => 'nullable|integer|default:10',
                 'is_active' => 'nullable|boolean|default:true',
                 'is_admin' => 'nullable|boolean|default:false',
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
@@ -146,7 +122,7 @@ class UserService
                 'whatsapp' => 'nullable|string',
                 'cpf_cnpj' => 'nullable|string',
                 'birth_date' => 'nullable|date',
-                'file_limit' => 'nullable|integer|default:0',
+                'file_limit' => 'nullable|integer|default:10',
                 'is_active' => 'nullable|boolean|default:true',
                 'is_admin' => 'nullable|boolean|default:false',
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
@@ -189,6 +165,34 @@ class UserService
             return ['status' => true, 'data' => $user];
         } catch (Exception $error) {
             return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
+        }
+    }
+
+    public function changeLimit($request, $user_id)
+    {
+        try {
+            $user = User::find($user_id);
+    
+            if (!$user) throw new Exception('Usuário não encontrado', 404);
+    
+            $rules = [
+                "file_limit" => ['required', 'integer']
+            ];
+    
+            $validator = Validator::make($request->all(), $rules);
+    
+            if ($validator->fails()) {
+                throw new Exception($validator->errors()->first(), 422);
+            }
+    
+            $validatedData = $validator->validated();
+    
+            $user->file_limit = $validatedData['file_limit'];
+            $user->save();
+    
+            return response()->json(['status' => true, 'data' => $user], 200);
+        } catch (Exception $error) {
+            return response()->json(['status' => false, 'error' => $error->getMessage()], $error->getCode() ?: 400);
         }
     }
 

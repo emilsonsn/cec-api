@@ -20,7 +20,7 @@ Trait GranatumTrait
 
     public function authenticate()
     {
-        $response = $this->client->post('https://api.vaultid.com.br/oauth/token', [
+        $response = $this->client->post('https://api.birdid.com.br/v0/oauth/authorize', [
             'form_params' => [
                 'grant_type' => 'client_credentials',
                 'client_id' => env('VAULTID_CLIENT_ID'),

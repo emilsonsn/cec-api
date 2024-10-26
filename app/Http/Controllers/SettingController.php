@@ -19,9 +19,9 @@ class SettingController extends Controller
         return $result;
     }
 
-    public function update(Request $request, $settingId){
+    public function update(Request $request){
 
-        $result = $this->settingService->update($request, $settingId);
+        $result = $this->settingService->update($request);
 
         if($result['status']) $result['message'] = "Configuração Atualizada com sucesso";
         return $this->response($result);

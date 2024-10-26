@@ -25,12 +25,6 @@ class UserController extends Controller
         return $result;
     }
 
-    public function cards(Request $request){
-        $result = $this->userService->cards($request);
-
-        return $this->response($result);
-    }
-
     public function getUser(){
         $result = $this->userService->getUser();
 
@@ -48,6 +42,13 @@ class UserController extends Controller
         $result = $this->userService->update($request, $id);
 
         if($result['status']) $result['message'] = "Usuário atualizado com sucesso";
+        return $this->response($result);
+    }
+    
+    public function changeLimit(Request $request, $id){
+        $result = $this->userService->changeLimit($request, $id);
+
+        if($result['status']) $result['message'] = "Ação realizada com sucesso";
         return $this->response($result);
     }
 

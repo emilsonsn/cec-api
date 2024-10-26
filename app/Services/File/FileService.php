@@ -47,13 +47,13 @@ class FileService
     {
         try {
             $rules = [
-                'user_id' => 'required|exists:users,id',
                 'positionX' => 'nullable|numeric',
                 'positionY' => 'nullable|numeric',
-                'path' => 'required|mimes:doc,docx,pdf|max:5120', // Aceita arquivos até 5 MB
+                'path' => 'required|mimes:doc,docx,pdf|max:5120',
             ];
             
             $requestData = $request->all();
+            $requestData['user_id'] = Auth::user()->id;
     
             // Validação dos dados
             $validator = Validator::make($requestData, $rules);

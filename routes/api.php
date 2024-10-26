@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\AdminMiddleware;
 
@@ -28,9 +29,6 @@ Route::get('validateToken', [AuthController::class, 'validateToken']);
 
 Route::middleware('jwt')->group(function(){
 
-    Route::middleware(AdminMiddleware::class)->group(function() {
-        // Middleware do admin
-    });
 
     Route::post('logout', [AuthController::class, 'logout']);
 
@@ -42,12 +40,11 @@ Route::middleware('jwt')->group(function(){
         Route::post('create', [UserController::class, 'create']);
         Route::patch('{id}', [UserController::class, 'update']);
         Route::post('block/{id}', [UserController::class, 'userBlock']);
+        Route::post('change-limit/{id}', [UserController::class, 'changeLimit']);        
     });
 
-    Route::prefix('client')->group(function(){
-        Route::get('search', [ClientController::class, 'search']);
-        Route::post('create', [ClientController::class, 'create']);
-        Route::patch('{id}', [ClientController::class, 'update']);
-        Route::delete('{id}', [ClientController::class, 'delete']);
+    Route::prefix('setting')->group(function(){
+        Route::get('search', [SettingController::class, 'search']);
+        Route::patch('/', [SettingController::class, 'update']);
     });
 });

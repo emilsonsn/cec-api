@@ -19,7 +19,7 @@ class SettingService
         }
     }
 
-    public function update($request, $settingId)
+    public function update($request)
     {
         try {
             $rules = [
@@ -30,7 +30,7 @@ class SettingService
 
             if ($validator->fails()) throw new Exception($validator->errors());
 
-            $settingToUpdate = Setting::find($settingId);
+            $settingToUpdate = Setting::first();
 
             if(!isset($settingToUpdate)) throw new Exception('Configuração não encontradas');            
 
