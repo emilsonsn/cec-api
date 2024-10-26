@@ -29,18 +29,20 @@ Route::get('validateToken', [AuthController::class, 'validateToken']);
 
 Route::middleware('jwt')->group(function(){
 
-
     Route::post('logout', [AuthController::class, 'logout']);
 
     Route::prefix('user')->group(function(){
-        Route::get('all', [UserController::class, 'all']);
-        Route::get('search', [UserController::class, 'search']);
-        Route::get('cards', [UserController::class, 'cards']);
-        Route::get('me', [UserController::class, 'getUser']);
+                
         Route::post('create', [UserController::class, 'create']);
+        Route::get('me', [UserController::class, 'getUser']);
         Route::patch('{id}', [UserController::class, 'update']);
-        Route::post('block/{id}', [UserController::class, 'userBlock']);
-        Route::post('change-limit/{id}', [UserController::class, 'changeLimit']);        
+
+        Route::middleware(AdminMiddleware::class)->group(function(){
+            Route::get('all', [UserController::class, 'all']);
+            Route::get('search', [UserController::class, 'search']);            
+            Route::post('block/{id}', [UserController::class, 'userBlock']);
+            Route::post('change-limit/{id}', [UserController::class, 'changeLimit']);
+        });
     });
 
     Route::prefix('setting')->group(function(){
