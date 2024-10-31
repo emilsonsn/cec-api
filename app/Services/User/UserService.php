@@ -2,6 +2,8 @@
 
 namespace App\Services\User;
 
+use App\Helpers\Helper;
+use App\Mail\EmailValidationMail;
 use App\Models\PasswordRecovery;
 use App\Models\User;
 use Exception;
@@ -9,6 +11,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordRecoveryMail;
 use App\Mail\WelcomeMail;
+use App\Models\UserEmailValidation;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -77,16 +81,20 @@ class UserService
                 'whatsapp' => 'nullable|string',
                 'cpf_cnpj' => 'nullable|string',
                 'birth_date' => 'nullable|date',
-                'file_limit' => 'nullable|integer|default:10',
-                'is_active' => 'nullable|boolean|default:true',
-                'is_admin' => 'nullable|boolean|default:false',
+                'file_limit' => 'nullable|integer',
+                'is_active' => 'nullable|boolean',
+                'is_admin' => 'nullable|boolean',
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ];
     
-            $password = str_shuffle(Str::upper(Str::random(1)) . rand(0, 9) . Str::random(1, '?!@#$%^&*') . Str::random(5));
-    
             $requestData = $request->all();
-            $requestData['password'] = Hash::make($password);
+
+            $globalLimit = Helper::getGlobalLimit();
+
+            $requestData['file_limit'] = $globalLimit ?? 10;
+            $requestData['is_active'] = $requestData['is_active'] ?? true;
+            $requestData['is_admin'] = $requestData['is_admin'] ?? false;
+            $requestData['password'] = Hash::make($requestData['password']);
     
             $validator = Validator::make($requestData, $rules);
     
@@ -101,11 +109,36 @@ class UserService
             }
     
             $user = User::create($requestData);
+
+            $code = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+            $user['userEmailValidation'] = UserEmailValidation::create([
+                'user_id' => $user->id,
+                'code' => $code
+            ]);
     
-            Mail::to($user->email)->send(new WelcomeMail($user->name, $user->email, $password));
+            Mail::to($user->email)->send(new EmailValidationMail($code));
     
             return ['status' => true, 'data' => $user];
         } catch (Exception $error) {
+            return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
+        }
+    }
+
+    public function email_validate($code){
+        try{
+            $userEmailValidation = UserEmailValidation::where('code', $code)
+                ->orderBy('id', 'desc')
+                ->first();
+    
+            if (!isset($userEmailValidation)) throw new Exception('Código inválido');
+
+            $user = User::find($userEmailValidation->user_id)
+                ->update([
+                    'email_verified_at' => Carbon::now()
+                ]);
+            return ['status' => true, 'data' => $user];
+
+        }catch(Exception $error){
             return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
         }
     }

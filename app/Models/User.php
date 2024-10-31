@@ -33,6 +33,7 @@ class User extends Authenticatable implements JWTSubject
         'birth_date',
         'is_active',
         'is_admin',
+        'integration_token',
         'file_limit',
         'photo'
     ];

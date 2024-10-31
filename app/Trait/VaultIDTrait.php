@@ -8,67 +8,71 @@ use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
 
-Trait GranatumTrait
+Trait VaultIDTrait
 {
     protected $apiKey;
-    protected $baseUrl;
+    protected $baseUrl = 'https://api.birdid.com.br/v0';
 
     public function __construct()
     {
         $this->client = new Client();
     }
 
-    public function authenticate()
+    public function authenticate($cpf_cnpj, $code_otp)
     {
-        $response = $this->client->post('https://api.birdid.com.br/v0/oauth/authorize', [
-            'form_params' => [
-                'grant_type' => 'client_credentials',
+        $url = $this->baseUrl . '/v0/oauth/pwd_authorize';
+        $response = $this->client->post($url, [
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ],
+            'json' => [
                 'client_id' => env('VAULTID_CLIENT_ID'),
                 'client_secret' => env('VAULTID_CLIENT_SECRET'),
-            ],
+                'username' => $cpf_cnpj,
+                'password' => $code_otp,
+                'grant_type' => 'password',
+                'scope' => 'authentication_session',
+                'lifetime' => 86400
+            ]
         ]);
-
-        return json_decode($response->getBody(), true)['access_token'];
+    
+        return json_decode($response->getBody(), true);
     }
 
-    public function signDocument($documentPath)
+    public function getUserCertificates($accessToken)
     {
-        $token = $this->authenticate();
-
-        $response = $this->client->post('https://api.vaultid.com.br/assinatura-digital', [
+        $url = $this->baseUrl . '/oauth/certificate-discovery';
+        
+        $response = $this->client->get($url, [
             'headers' => [
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-            ],
-            'multipart' => [
-                [
-                    'name'     => 'file',
-                    'contents' => fopen($documentPath, 'r'),
-                ],
-                [
-                    'name'     => 'certificado_id',
-                    'contents' => env('VAULTID_CERTIFICATE_ID'),
-                ],
-            ],
+            ]
         ]);
 
         return json_decode($response->getBody(), true);
     }
 
-    public function checkSignatureStatus($signatureId)
+    public function signDocument($accessToken, $certificateAlias, $hashes)
     {
-        $token = $this->authenticate();
-
-        $response = $this->client->get("https://api.vaultid.com.br/assinatura-digital/{$signatureId}", [
+        $url = $this->baseUrl . '/oauth/signature';
+        $response = $this->client->post($url, [
             'headers' => [
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
             ],
+            'json' => [
+                'certificate_alias' => $certificateAlias,
+                'hashes' => $hashes,
+                'include_chain' => true
+            ]
         ]);
 
         return json_decode($response->getBody(), true);
     }
-
 
 
 }

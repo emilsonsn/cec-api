@@ -2,10 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ClientController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VaultIdController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\EmailValidateMiddleware;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,13 +28,16 @@ Route::post('updatePassword', [UserController::class, 'updatePassword']);
 
 Route::get('validateToken', [AuthController::class, 'validateToken']);
 
-Route::middleware('jwt')->group(function(){
+Route::post('user/create', [UserController::class, 'create']);
+
+Route::post('user/email_validate/{code}', [UserController::class, 'email_validate']);
+
+Route::middleware(['jwt', 'email'])->group(function(){
 
     Route::post('logout', [AuthController::class, 'logout']);
 
     Route::prefix('user')->group(function(){
                 
-        Route::post('create', [UserController::class, 'create']);
         Route::get('me', [UserController::class, 'getUser']);
         Route::patch('{id}', [UserController::class, 'update']);
 
@@ -43,6 +47,10 @@ Route::middleware('jwt')->group(function(){
             Route::post('block/{id}', [UserController::class, 'userBlock']);
             Route::post('change-limit/{id}', [UserController::class, 'changeLimit']);
         });
+    });
+
+    Route::prefix('vault-id')->group(function(){
+        Route::get('certificates', [VaultIdController::class, 'getCertificates']); 
     });
 
     Route::prefix('setting')->group(function(){

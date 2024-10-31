@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -10,11 +11,16 @@ class AuthController extends Controller
     {
         $credentials = $request->only('email', 'password');
 
+        $user = User::where('email', $credentials['email'])
+            ->first();
+
+        if (!isset($user->email_verified_at)) {
+            return response()->json(['error' => 'Email não validado'], 401);
+        }
+
         if (! $token = JWTAuth::attempt($credentials)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
-
-        $user = auth()->user();
 
         return response()->json([
             'status' => true,

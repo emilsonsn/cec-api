@@ -38,6 +38,13 @@ class UserController extends Controller
         return $this->response($result);
     }
 
+    public function email_validate(string $code){
+        $result = $this->userService->email_validate($code);
+
+        if($result['status']) $result['message'] = "Usuário criado com sucesso";
+        return $this->response($result);
+    }
+
     public function update(Request $request, $id){
         $result = $this->userService->update($request, $id);
 

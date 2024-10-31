@@ -5,25 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class File extends Model
+class UserEmailValidation extends Model
 {
     use HasFactory;
 
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';
 
-    public $table = 'files';
+    public $table = "user_email_validation";
 
     protected $fillable = [
+        'code',
         'user_id',
-        'path',
-        'filename',
-        'positionX',
-        'positionY',
     ];
 
     public function user(){
         return $this->belongsTo(User::class);
     }
-   
 }
