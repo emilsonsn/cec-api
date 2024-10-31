@@ -14,7 +14,6 @@ class VaultIdService
     public function getCertificates($request)
     {
         try{
-
             $cpf_cnpj = $request->cpf_cnpj;
             $code_otp = $request->code_otp;
             
