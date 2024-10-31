@@ -2,11 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VaultIdController;
 use App\Http\Middleware\AdminMiddleware;
-use App\Http\Middleware\EmailValidateMiddleware;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,6 +47,11 @@ Route::middleware(['jwt', 'email'])->group(function(){
             Route::post('block/{id}', [UserController::class, 'userBlock']);
             Route::post('change-limit/{id}', [UserController::class, 'changeLimit']);
         });
+    });
+
+    Route::prefix('file')->group(function(){
+        Route::get('search', [FileController::class, 'search']); 
+        Route::get('create', [FileController::class, 'create']); 
     });
 
     Route::prefix('vault-id')->group(function(){

@@ -20,7 +20,7 @@ Trait VaultIDTrait
 
     public function authenticate($cpf_cnpj, $code_otp)
     {
-        $url = $this->baseUrl . '/v0/oauth/pwd_authorize';
+        $url = $this->baseUrl . '/oauth/pwd_authorize';
         $response = $this->client->post($url, [
             'headers' => [
                 'Content-Type' => 'application/json',
