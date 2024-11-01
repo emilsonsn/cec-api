@@ -3,15 +3,12 @@
 namespace App\Services\File;
 
 use App\Models\File;
-use App\Models\User;
 use App\Trait\VaultIDTrait;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use setasign\Fpdi\Fpdi;
-use PhpOffice\PhpWord\TemplateProcessor;
 use Dompdf\Dompdf;
 use PhpOffice\PhpWord\IOFactory;
 
@@ -51,41 +48,48 @@ class FileService
     {
         try {
             $rules = [
-                'positionX' => 'nullable|numeric',
-                'positionY' => 'nullable|numeric',
-                'page' => 'nullable|integer',
-                'file' => 'required|mimes:doc,docx,pdf|max:5120',
-                'access_token' => 'required|string',
+                'positionX'         => 'nullable|numeric',
+                'positionY'         => 'nullable|numeric',
+                'page'              => 'nullable|integer',
+                'file'              => 'required|mimes:doc,docx,pdf|max:5120',
+                'access_token'      => 'required|string',
                 'certificate_alias' => 'required|string',
             ];
-    
+
             $auth = Auth::user();
-    
-            $userFilesCount = User::where('user_id', $auth->id)
-                ->whereDate('created_at', Carbon::now())
-                ->files->count();
-    
+
+            $userFilesCount = File::where('user_id', $auth->id)
+                ->whereDate('created_at', Carbon::now())                
+                ->count();
+
             if ($userFilesCount >= $auth->file_limit) {
                 throw new Exception('Você chegou ao seu limite mensal de assinaturas');
             }
-    
+
             $requestData = $request->all();
             $requestData['user_id'] = $auth->id;
-    
+
             $validator = Validator::make($requestData, $rules);
-    
+
             if ($validator->fails()) {
                 return ['status' => false, 'error' => $validator->errors(), 'statusCode' => 400];
             }
-    
+
             if (!$request->hasFile('file')) {
                 throw new Exception('Arquivo para assinatura é obrigatório');
             }
             
             $requestData['filename'] = $request->file('file')->getClientOriginalName();
 
+            // Processa e armazena o arquivo
             $path = $this->processFileAndStore($request);
 
+            // Adiciona o nome do usuário ao PDF e apaga o arquivo original
+            $tempFilePath = storage_path("app/public/{$path}");
+            $path = $this->addUserNameToPDF($tempFilePath, $auth->name, $request->positionX, $request->positionY, $request->page);
+            unlink($tempFilePath); // Remove o arquivo original
+
+            // Gera a assinatura digital usando a API
             $signatureResponse = $this->generateSignature($request->input('access_token'), $request->input('certificate_alias'), $path);
             if (!isset($signatureResponse['signatures']) && count($signatureResponse['signatures'])) {
                 throw new Exception('Erro ao assinar o documento: ' . $signatureResponse['error']);
@@ -93,33 +97,70 @@ class FileService
 
             $signature = $signatureResponse['signatures'][0]['raw_signature'];
 
-            $signedFilePath = $this->addSignatureToPDF(storage_path("app/public/{$path}"), Auth::user()->name, $request->positionX, $request->positionY, $signature);
+            // Adiciona a assinatura digital e apaga o arquivo sem assinatura
+            $signedFilePath = $this->addSignatureToPDF(storage_path("app/public/{$path}"), $auth->name, $request->positionX, $request->positionY, $signature);
+            unlink(storage_path("app/public/{$path}")); // Remove o arquivo sem assinatura
 
+            // Atualiza o caminho final no request data
             $requestData['path'] = $signedFilePath;
 
+            // Salva o registro do arquivo no banco de dados
             $file = File::create($requestData);
-    
-            return ['status' => true, 'data' => $file];
+
+            return ['status' => true, 'data' => ['file' => $file, 'path' => $signedFilePath]];
         } catch (Exception $error) {
             return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
         }
     }
-    
-    public function generateSignature($accessToken, $certificateAlias, $filePath)
-    {
-        $fileContent = file_get_contents(storage_path("app/public/{$filePath}"));
-        $hash = hash('sha256', $fileContent);
 
+    private function addUserNameToPDF($filePath, $name, $positionXPercent, $positionYPercent, $page)
+    {
+        $pdf = new Fpdi();
+        $pageCount = $pdf->setSourceFile($filePath);
+    
+    
+        // Itera por todas as páginas do PDF original
+        for ($i = 1; $i <= $pageCount; $i++) {
+            $pdfWidth = $pdf->getTemplateSize($pdf->importPage(1))['width'];
+            $pdfHeight = $pdf->getTemplateSize($pdf->importPage(1))['height'];
+        
+            // Converte porcentagens para coordenadas absolutas
+            $positionX = ($positionXPercent / 100) * $pdfWidth - 2;
+            $positionY = (($positionYPercent / 100) * $pdfHeight) + 4;
+
+            $pdf->AddPage();
+            $tplIdx = $pdf->importPage($i);
+            $pdf->useTemplate($tplIdx);
+    
+            // Adiciona a assinatura apenas na página especificada
+            if ($i == $page) {
+                $pdf->SetFont('Arial', 'I', 12);
+                $pdf->SetTextColor(50, 50, 50);
+                $pdf->SetXY($positionX, $positionY);
+                $pdf->Write(0, $name);
+            }
+        }
+    
+        $tempFilePath = str_replace('.pdf', '_temp.pdf', $filePath);
+        $pdf->Output($tempFilePath, 'F');
+        return $tempFilePath;
+    }
+    
+    
+    public function generateSignature($accessToken, $certificateAlias, $fileContent)
+    {
+        $hash = hash('sha256', $fileContent);
+    
         $hashes = [
             [
                 'id' => '1',
-                'alias' => 'Documento Assinado',
+                'alias' => 'Documento Assinado pelo CEC',
                 'hash' => $hash,
-                'algorithm' => 'SHA-256',
-                'signature_format' => 'PKCS7'
+                'hash_algorithm' => '2.16.840.1.101.3.4.2.1',
+                'signature_format' => 'RAW'
             ]
         ];
-
+    
         return $this->signDocument($accessToken, $certificateAlias, $hashes);
     }
 

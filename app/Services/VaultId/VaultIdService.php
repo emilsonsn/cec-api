@@ -4,7 +4,7 @@ namespace App\Services\VaultId;
 
 use App\Trait\VaultIDTrait;
 use Exception;
-
+use Illuminate\Support\Facades\Auth;
 
 class VaultIdService
 {
@@ -14,11 +14,9 @@ class VaultIdService
     public function getCertificates($request)
     {
         try{
-            $cpf_cnpj = $request->cpf_cnpj;
+            $cpf_cnpj = Auth::user()->cpf_cnpj;
             $code_otp = $request->code_otp;
             
-            if(!isset($cpf_cnpj)) throw new Exception('Campo cpf/cnpj é obrigatório');
-
             if(!isset($code_otp)) throw new Exception('Código OTP é obrigatório');
 
             $auth = $this->authenticate($cpf_cnpj, $code_otp);

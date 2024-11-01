@@ -51,7 +51,7 @@ Route::middleware(['jwt', 'email'])->group(function(){
 
     Route::prefix('file')->group(function(){
         Route::get('search', [FileController::class, 'search']); 
-        Route::get('create', [FileController::class, 'create']); 
+        Route::post('create', [FileController::class, 'create']); 
     });
 
     Route::prefix('vault-id')->group(function(){

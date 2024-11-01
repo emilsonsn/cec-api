@@ -65,7 +65,7 @@ Trait VaultIDTrait
                 'Accept' => 'application/json',
             ],
             'json' => [
-                'certificate_alias' => $certificateAlias,
+                'certificate_alias' => trim($certificateAlias),
                 'hashes' => $hashes,
                 'include_chain' => true
             ]
