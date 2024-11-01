@@ -55,7 +55,7 @@
         <h1>Validação de email</h1>
         <p>Olá, seja bem vindo ao {{ env('APP_NAME') }}</p>
         <p>Acesse essa link para validarmos seu email:</p>
-        <p><a href="{{env('FRONT_URL') . '/email_validade?code=' . $code }}">Validar meu email</a></p>
+        <p><a href="{{env('APP_URL') . '/api/user/email_validate/' . $code }}">Validar meu email</a></p>
         <p>Se você não se cadastrou em nossa plataforma, por favor, ignore este e-mail.</p>
         <div class="footer">
             <p>© {{ date('Y') }} {{ env('APP_NAME') }} . Todos os direitos reservados.</p>

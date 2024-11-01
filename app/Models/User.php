@@ -59,8 +59,11 @@ class User extends Authenticatable implements JWTSubject
     ];
 
     public function files(){
-        return $this->hasMany(File::class);
+        return $this->hasMany(File::class)
+            ->whereMonth('created_at', date('m'))
+            ->whereYear('created_at', date('Y'));
     }
+    
 
     public function getJWTIdentifier()
     {

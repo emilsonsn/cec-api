@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 use setasign\Fpdi\Fpdi;
 use Dompdf\Dompdf;
 use PhpOffice\PhpWord\IOFactory;
+use Illuminate\Support\Str;
+
 
 class FileService
 {
@@ -36,6 +38,7 @@ class FileService
 
             $files = File::where('user_id', $userId)
                 ->with('user')
+                ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
             return $files;
@@ -96,26 +99,38 @@ class FileService
             }
 
             $signature = $signatureResponse['signatures'][0]['raw_signature'];
+            $assignId = $signatureResponse['signatures'][0]['id'];
 
-            // Adiciona a assinatura digital e apaga o arquivo sem assinatura
-            $signedFilePath = $this->addSignatureToPDF(storage_path("app/public/{$path}"), $signature);
-            unlink(storage_path("app/public/{$path}")); // Remove o arquivo sem assinatura
+            $uuid = (string) Str::uuid();
 
-            // Atualiza o caminho final no request data
+            $signatureData = [
+                'docName' => $requestData['filename'],
+                'uuid' => $uuid,
+                'raw_signature' => $signature,
+                'name' => $auth->name,
+                'cpf_cnpj' => $this->formatCpfCnpj($auth->cpf_cnpj),
+                'date' => Carbon::now()->format('d M Y \à\s H:i:s'),
+            ];
+            
+            $signedFilePath = $this->addSignatureToPDF($path, $signatureData);
+            unlink($path);
+
             $requestData['path'] = $signedFilePath;
+            $requestData['signature'] = $signature;
+            $requestData['uuid'] = $uuid;
+            $requestData['assign_id'] = $assignId;            
 
-            // Salva o registro do arquivo no banco de dados
             $file = File::create($requestData);
 
-            return ['status' => true, 'data' => ['file' => $file, 'path' => $signedFilePath]];
+            return ['status' => true, 'data' => ['file' => $file, 'path' => $file->path]];
         } catch (Exception $error) {
             return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
         }
     }
 
-    public function generateSignature($accessToken, $certificateAlias, $fileContent)
+    public function generateSignature($accessToken, $certificateAlias, $filePath)
     {
-        $hash = hash('sha256', $fileContent);
+        $hash = hash_file('sha256', $filePath);
     
         $hashes = [
             [
@@ -163,10 +178,17 @@ class FileService
 
     private function addUserNameToPDF($filePath, $name, $positionXPercent, $positionYPercent, $page)
     {
+        define('FPDF_FONTPATH', resource_path('fonts/'));
+
+        if (!file_exists($filePath)) {
+            throw new Exception("Arquivo PDF não encontrado: {$filePath}");
+        }
+
         $pdf = new Fpdi();
+
         $pageCount = $pdf->setSourceFile($filePath);
 
-        $pdf->AddFont('Handwritten', '', 'resources/fonts/minhaFonte.ttf', true);
+        $pdf->AddFont('Handwritten', '', 'handwriting.php'); // Sem o caminho completo
     
         for ($i = 1; $i <= $pageCount; $i++) {
             $pdfWidth = $pdf->getTemplateSize($pdf->importPage(1))['width'];
@@ -180,7 +202,7 @@ class FileService
             $pdf->useTemplate($tplIdx);
     
             if ($i == $page) {
-                $pdf->SetFont('Handwritten', '', 12);
+                $pdf->SetFont('Handwritten', '', 24);
                 $pdf->SetTextColor(50, 50, 50);
                 $pdf->SetXY($positionX, $positionY);
                 $pdf->Write(0, $name);
@@ -189,29 +211,99 @@ class FileService
     
         $tempFilePath = str_replace('.pdf', '_temp.pdf', $filePath);
         $pdf->Output($tempFilePath, 'F');
+        unset($GLOBALS['FPDF_FONTPATH']);
+
         return $tempFilePath;
     }
 
-    private function addSignatureToPDF($filePath, $signature = '')
+    private function addSignatureToPDF($filePath, $signature)
     {
+        if (!file_exists($filePath)) {
+            throw new Exception("Arquivo PDF não encontrado: {$filePath}");
+        }
+
         $pdf = new Fpdi();
         $pageCount = $pdf->setSourceFile($filePath);
-    
-        $pdf->AddPage();
-        $pdf->SetFont('Courier', '', 10);
-        $pdf->SetXY(10, 10);
-        $pdf->MultiCell(0, 10, base64_decode($signature));
-    
+
         for ($i = 1; $i <= $pageCount; $i++) {
             $pdf->AddPage();
             $tplIdx = $pdf->importPage($i);
             $pdf->useTemplate($tplIdx);
         }
-    
-        $newFilePath = storage_path('app/public/files_assign/' . basename($filePath));
+
+        $this->addSignaturePage($pdf, $signature);
+
+        $uniqueFileName = Str::random(40) . '.pdf';
+        $newFilePath = storage_path('app/public/files_assign/' . basename($uniqueFileName));
+
+        $directory = dirname($newFilePath);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
         $pdf->Output($newFilePath, 'F');
-        return $newFilePath;
+        return $uniqueFileName;
     }
+
+    private function addSignaturePage($pdf, $signature)
+    {
+        $pdf->AddPage();
+
+        // Posiciona o logo
+        $pdf->Image(resource_path('images/cec-logo.png'), 10, 10, 40);
+
+        // Configura a fonte personalizada
+        $pdf->AddFont('arial', '', 'arial.php');
+        $pdf->AddFont('arial', 'B', 'arialb.php');
+
+        // Nome do documento com `MultiCell` para quebrar o texto longo
+        $pdf->SetXY(55, 10); // Ajuste a posição para o lado direito da imagem
+        $pdf->SetFont('arial', 'B', 14);
+        $pdf->MultiCell(0, 8, mb_convert_encoding($signature['docName'], 'ISO-8859-1', 'UTF-8'), 0, 'C');
+
+        // UUID do documento
+        $pdf->SetFont('arial', '', 10);
+        $pdf->Cell(0, 8, "CECID da assinatura: {$signature['uuid']}", 0, 1, 'C');
+
+        $pdf->Ln(10); // Espaço
+
+        // Seção de assinatura
+        $pdf->SetFont('arial', 'B', 12);
+        $pdf->Cell(0, 10, 'Assinatura:', 0, 1);
+
+        $pdf->SetFont('arial', '', 10);
+        
+        $cpfCnpj = $signature['cpf_cnpj'];
+        $label = strlen($cpfCnpj) === 14 ? ' - CPF: ' : ' - CNPJ: ';
+
+        $pdf->Cell(0, 6, mb_convert_encoding($signature['name'] . $label . $cpfCnpj, 'ISO-8859-1', 'UTF-8'), 0, 1);
+
+        $pdf->Cell(0, 6, mb_convert_encoding('Assinou em ' . $signature['date'], 'ISO-8859-1', 'UTF-8'), 0, 1);
+
+        $pdf->Ln(10); // Espaço adicional
+
+        // Seção de assinatura digital
+        $pdf->SetFont('arial', 'B', 12);
+        $pdf->Cell(0, 10, 'Assinatura digital:', 0, 1);
+
+        $pdf->SetFont('arial', '', 10);
+        $pdf->MultiCell(0, 5, wordwrap($signature['raw_signature'], 80, "\n", true), 0, 'L');
+    }
+
+    private function formatCpfCnpj($value) {
+        // Remove qualquer caractere não numérico
+        $value = preg_replace("/\D/", '', $value);
     
+        if (strlen($value) === 11) {
+            // Formata como CPF: 000.000.000-00
+            return preg_replace("/(\d{3})(\d{3})(\d{3})(\d{2})/", "$1.$2.$3-$4", $value);
+        } elseif (strlen($value) === 14) {
+            // Formata como CNPJ: 00.000.000/0000-00
+            return preg_replace("/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/", "$1.$2.$3/$4-$5", $value);
+        }
     
+        // Retorna o valor sem formatação se não for CPF nem CNPJ
+        return $value;
+    }
+
 }

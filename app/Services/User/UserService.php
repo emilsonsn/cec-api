@@ -10,12 +10,10 @@ use Exception;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordRecoveryMail;
-use App\Mail\WelcomeMail;
 use App\Models\UserEmailValidation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class UserService
 {
@@ -73,6 +71,8 @@ class UserService
     public function create($request)
     {
         try {
+            $request['photo'] = $request['photo'] == 'null' ? null : $request['photo'];
+
             $rules = [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
@@ -132,10 +132,9 @@ class UserService
     
             if (!isset($userEmailValidation)) throw new Exception('Código inválido');
 
-            $user = User::find($userEmailValidation->user_id)
-                ->update([
-                    'email_verified_at' => Carbon::now()
-                ]);
+            $user = User::find($userEmailValidation->user_id);
+            $user->email_verified_at = Carbon::now();
+            $user->save();
             return ['status' => true, 'data' => $user];
 
         }catch(Exception $error){

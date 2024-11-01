@@ -41,8 +41,9 @@ class UserController extends Controller
     public function email_validate(string $code){
         $result = $this->userService->email_validate($code);
 
-        if($result['status']) $result['message'] = "Usuário criado com sucesso";
-        return $this->response($result);
+        if($result['status']) {
+            return view('email_validated');
+        }
     }
 
     public function update(Request $request, $id){

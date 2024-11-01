@@ -15,12 +15,22 @@ class File extends Model
     public $table = 'files';
 
     protected $fillable = [
+        'uuid',
         'user_id',
+        'assign_id',
         'path',
+        'signature',
         'filename',
         'positionX',
         'positionY',
     ];
+
+    public function getPathAttribute()
+    {
+        if(isset($this->attributes['path']) && $this->attributes['path']){
+            return env('APP_URL') . '/storage/files_assign/' . $this->attributes['path'];
+        }
+    }
 
     public function user(){
         return $this->belongsTo(User::class);

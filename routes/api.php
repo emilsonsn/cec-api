@@ -30,7 +30,7 @@ Route::get('validateToken', [AuthController::class, 'validateToken']);
 
 Route::post('user/create', [UserController::class, 'create']);
 
-Route::post('user/email_validate/{code}', [UserController::class, 'email_validate']);
+Route::get('user/email_validate/{code}', [UserController::class, 'email_validate']);
 
 Route::middleware(['jwt', 'email'])->group(function(){
 
