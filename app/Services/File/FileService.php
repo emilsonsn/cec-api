@@ -98,7 +98,7 @@ class FileService
             $signature = $signatureResponse['signatures'][0]['raw_signature'];
 
             // Adiciona a assinatura digital e apaga o arquivo sem assinatura
-            $signedFilePath = $this->addSignatureToPDF(storage_path("app/public/{$path}"), $auth->name, $request->positionX, $request->positionY, $signature);
+            $signedFilePath = $this->addSignatureToPDF(storage_path("app/public/{$path}"), $signature);
             unlink(storage_path("app/public/{$path}")); // Remove o arquivo sem assinatura
 
             // Atualiza o caminho final no request data
@@ -113,40 +113,6 @@ class FileService
         }
     }
 
-    private function addUserNameToPDF($filePath, $name, $positionXPercent, $positionYPercent, $page)
-    {
-        $pdf = new Fpdi();
-        $pageCount = $pdf->setSourceFile($filePath);
-    
-    
-        // Itera por todas as páginas do PDF original
-        for ($i = 1; $i <= $pageCount; $i++) {
-            $pdfWidth = $pdf->getTemplateSize($pdf->importPage(1))['width'];
-            $pdfHeight = $pdf->getTemplateSize($pdf->importPage(1))['height'];
-        
-            // Converte porcentagens para coordenadas absolutas
-            $positionX = ($positionXPercent / 100) * $pdfWidth - 2;
-            $positionY = (($positionYPercent / 100) * $pdfHeight) + 4;
-
-            $pdf->AddPage();
-            $tplIdx = $pdf->importPage($i);
-            $pdf->useTemplate($tplIdx);
-    
-            // Adiciona a assinatura apenas na página especificada
-            if ($i == $page) {
-                $pdf->SetFont('Arial', 'I', 12);
-                $pdf->SetTextColor(50, 50, 50);
-                $pdf->SetXY($positionX, $positionY);
-                $pdf->Write(0, $name);
-            }
-        }
-    
-        $tempFilePath = str_replace('.pdf', '_temp.pdf', $filePath);
-        $pdf->Output($tempFilePath, 'F');
-        return $tempFilePath;
-    }
-    
-    
     public function generateSignature($accessToken, $certificateAlias, $fileContent)
     {
         $hash = hash('sha256', $fileContent);
@@ -195,24 +161,57 @@ class FileService
         return $pdfFilePath;
     }
 
-    private function addSignatureToPDF($filePath, $name, $positionX, $positionY, $signature = '')
+    private function addUserNameToPDF($filePath, $name, $positionXPercent, $positionYPercent, $page)
     {
         $pdf = new Fpdi();
-        $pdf->AddPage();
-        $pdf->setSourceFile($filePath);
-        $tplIdx = $pdf->importPage(1);
-        $pdf->useTemplate($tplIdx);
+        $pageCount = $pdf->setSourceFile($filePath);
 
-        $pdf->SetFont('Courier', 'I', 12);
-        $pdf->SetXY($positionX, $positionY);
-        $pdf->Write(0, $name);
+        $pdf->AddFont('Handwritten', '', 'resources/fonts/minhaFonte.ttf', true);
+    
+        for ($i = 1; $i <= $pageCount; $i++) {
+            $pdfWidth = $pdf->getTemplateSize($pdf->importPage(1))['width'];
+            $pdfHeight = $pdf->getTemplateSize($pdf->importPage(1))['height'];
+        
+            $positionX = ($positionXPercent / 100) * $pdfWidth - 2;
+            $positionY = (($positionYPercent / 100) * $pdfHeight) + 4;
 
+            $pdf->AddPage();
+            $tplIdx = $pdf->importPage($i);
+            $pdf->useTemplate($tplIdx);
+    
+            if ($i == $page) {
+                $pdf->SetFont('Handwritten', '', 12);
+                $pdf->SetTextColor(50, 50, 50);
+                $pdf->SetXY($positionX, $positionY);
+                $pdf->Write(0, $name);
+            }
+        }
+    
+        $tempFilePath = str_replace('.pdf', '_temp.pdf', $filePath);
+        $pdf->Output($tempFilePath, 'F');
+        return $tempFilePath;
+    }
+
+    private function addSignatureToPDF($filePath, $signature = '')
+    {
+        $pdf = new Fpdi();
+        $pageCount = $pdf->setSourceFile($filePath);
+    
         $pdf->AddPage();
         $pdf->SetFont('Courier', '', 10);
-        $pdf->MultiCell(0, 10, "Assinatura Digital: " . base64_decode($signature));
-
+        $pdf->SetXY(10, 10);
+        $pdf->MultiCell(0, 10, base64_decode($signature));
+    
+        for ($i = 1; $i <= $pageCount; $i++) {
+            $pdf->AddPage();
+            $tplIdx = $pdf->importPage($i);
+            $pdf->useTemplate($tplIdx);
+        }
+    
         $newFilePath = storage_path('app/public/files_assign/' . basename($filePath));
         $pdf->Output($newFilePath, 'F');
         return $newFilePath;
     }
+    
+    
 }
