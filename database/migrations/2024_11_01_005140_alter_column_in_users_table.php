@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('cpf_cnpj')->unique()->change();
+            // $table->string('cpf_cnpj')->unique()->change();
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropUnique(['cpf_cnpj']);
+            // $table->dropUnique(['cpf_cnpj']);
         });
     }
 };
