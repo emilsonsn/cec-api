@@ -72,6 +72,8 @@ class FileService
             $requestData = $request->all();
             $requestData['user_id'] = $auth->id;
 
+            $uuid = (string) Str::uuid();
+
             $validator = Validator::make($requestData, $rules);
 
             if ($validator->fails()) {
@@ -93,7 +95,7 @@ class FileService
             unlink($tempFilePath); // Remove o arquivo original
 
             // Gera a assinatura digital usando a API
-            $signatureResponse = $this->generateSignature($request->input('access_token'), $request->input('certificate_alias'), $path);
+            $signatureResponse = $this->generateSignature($request->input('access_token'), $request->input('certificate_alias'), $path, $uuid);
             if (!isset($signatureResponse['signatures']) && count($signatureResponse['signatures'])) {
                 throw new Exception('Erro ao assinar o documento: ' . $signatureResponse['error']);
             }
@@ -101,7 +103,6 @@ class FileService
             $signature = $signatureResponse['signatures'][0]['raw_signature'];
             $assignId = $signatureResponse['signatures'][0]['id'];
 
-            $uuid = (string) Str::uuid();
 
             $signatureData = [
                 'docName' => $requestData['filename'],
@@ -128,13 +129,13 @@ class FileService
         }
     }
 
-    public function generateSignature($accessToken, $certificateAlias, $filePath)
+    public function generateSignature($accessToken, $certificateAlias, $filePath, $uuid)
     {
         $hash = hash_file('sha256', $filePath);
     
         $hashes = [
             [
-                'id' => '1',
+                'id' => $uuid,
                 'alias' => 'Documento Assinado pelo CEC',
                 'hash' => $hash,
                 'hash_algorithm' => '2.16.840.1.101.3.4.2.1',
