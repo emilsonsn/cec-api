@@ -64,7 +64,7 @@ class FileService
             $auth = Auth::user();
 
             $userFilesCount = File::where('user_id', $auth->id)
-                ->whereDate('created_at', Carbon::now())                
+                ->whereMonth('created_at', Carbon::now())
                 ->count();
 
             if ($userFilesCount >= $auth->file_limit) {
