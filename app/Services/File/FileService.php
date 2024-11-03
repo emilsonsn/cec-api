@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use setasign\Fpdi\Fpdi;
 use Dompdf\Dompdf;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpWord\IOFactory;
 use Illuminate\Support\Str;
 
@@ -50,6 +51,7 @@ class FileService
     public function create($request)
     {
         try {
+            Log::info('Pra testar o log');
             $rules = [
                 'positionX'         => 'nullable|numeric',
                 'positionY'         => 'nullable|numeric',
@@ -69,6 +71,11 @@ class FileService
                 throw new Exception('Você chegou ao seu limite mensal de assinaturas');
             }
 
+            if (!$request->hasFile('file')) {
+                Log::error('Arquivo não encontrado na requisição.');
+                throw new Exception('Arquivo para assinatura é obrigatório');
+            }
+
             $requestData = $request->all();
             $requestData['user_id'] = $auth->id;
 
@@ -79,22 +86,15 @@ class FileService
             if ($validator->fails()) {
                 return ['status' => false, 'error' => $validator->errors(), 'statusCode' => 400];
             }
-
-            if (!$request->hasFile('file')) {
-                throw new Exception('Arquivo para assinatura é obrigatório');
-            }
             
             $requestData['filename'] = $request->file('file')->getClientOriginalName();
 
-            // Processa e armazena o arquivo
             $path = $this->processFileAndStore($request);
 
-            // Adiciona o nome do usuário ao PDF e apaga o arquivo original
             $tempFilePath = storage_path("app/public/{$path}");
             $path = $this->addUserNameToPDF($tempFilePath, $auth->name, $request->positionX, $request->positionY, $request->page);
-            unlink($tempFilePath); // Remove o arquivo original
+            unlink($tempFilePath);
 
-            // Gera a assinatura digital usando a API
             $signatureResponse = $this->generateSignature($request->input('access_token'), $request->input('certificate_alias'), $path, $uuid);
             if (!isset($signatureResponse['signatures']) && count($signatureResponse['signatures'])) {
                 throw new Exception('Erro ao assinar o documento: ' . $signatureResponse['error']);
@@ -102,7 +102,6 @@ class FileService
 
             $signature = $signatureResponse['signatures'][0]['raw_signature'];
             $assignId = $signatureResponse['signatures'][0]['id'];
-
 
             $signatureData = [
                 'docName' => $requestData['filename'],
