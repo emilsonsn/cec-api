@@ -5,6 +5,7 @@ namespace App\Services\VaultId;
 use App\Trait\VaultIDTrait;
 use Exception;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class VaultIdService
 {
@@ -25,7 +26,11 @@ class VaultIdService
     
             $responseCertificates = $this->getUserCertificates($auth['access_token']);
     
-            if(!isset($responseCertificates['certificates'])) throw new Exception('Não foi possível buscar certificados');
+            if(!isset($responseCertificates['certificates'])){
+                $error = json_encode($responseCertificates);
+                Log::error($error);
+                throw new Exception('Não foi possível buscar certificados');
+            }
     
             return [
                 'status' => true,

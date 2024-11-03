@@ -54,7 +54,7 @@ class FileService
                 'positionX'         => 'nullable|numeric',
                 'positionY'         => 'nullable|numeric',
                 'page'              => 'nullable|integer',
-                'file'              => 'required|mimes:doc,docx,pdf|max:5120',
+                'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:51200',
                 'access_token'      => 'required|string',
                 'certificate_alias' => 'required|string',
             ];
