@@ -36,7 +36,7 @@ class VaultIdService
             ];
 
         } catch(Exception $error){
-            return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
+            return ['status' => false, 'error' => 'Não foi possível obter seus certificados.', 'statusCode' => 400];
         }
     }
 }

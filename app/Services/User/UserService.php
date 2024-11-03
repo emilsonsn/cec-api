@@ -86,8 +86,17 @@ class UserService
                 'is_admin' => 'nullable|boolean',
                 'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ];
-    
+
             $requestData = $request->all();
+
+            $duplicateUser = User::where('email', $requestData['email'])
+                ->orWhere('cpf_cnpj', $requestData['cpf_cnpj'])
+                ->first();
+            
+            if(isset($duplicateUser)){
+                throw new Exception ('Email ou CPF/CNPJ já estão em uso.');
+            }
+
 
             $globalLimit = Helper::getGlobalLimit();
 
