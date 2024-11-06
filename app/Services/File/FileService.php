@@ -90,8 +90,10 @@ class FileService
             $requestData['filename'] = $request->file('file')->getClientOriginalName();
 
             $path = $this->processFileAndStore($request);
-
             $tempFilePath = storage_path("app/public/{$path}");
+
+            $tempFilePath = $this->convertPdfToCompatibleFormat($tempFilePath);
+
             $path = $this->addUserNameToPDF($tempFilePath, $auth->name, $request->positionX, $request->positionY, $request->page);
             unlink($tempFilePath);
 
@@ -128,6 +130,21 @@ class FileService
         }
     }
 
+    private function convertPdfToCompatibleFormat($filePath)
+    {
+        $outputPath = $filePath;
+    
+        $command = "gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -o " . escapeshellarg($outputPath) . " " . escapeshellarg($filePath);
+        exec($command, $output, $returnVar);
+    
+        if ($returnVar !== 0) {
+            throw new Exception("Erro ao converter o PDF para formato compatível: " . implode("\n", $output));
+        }
+    
+        return $outputPath;
+    }
+    
+
     public function generateSignature($accessToken, $certificateAlias, $filePath, $uuid)
     {
         $hash = hash_file('sha256', $filePath);
@@ -138,7 +155,7 @@ class FileService
                 'alias' => 'Documento Assinado pelo CEC',
                 'hash' => $hash,
                 'hash_algorithm' => '2.16.840.1.101.3.4.2.1',
-                'signature_format' => 'RAW'
+                'signature_format' => 'CMS'
             ]
         ];
     
@@ -289,6 +306,7 @@ class FileService
         $pdf->SetFont('arial', '', 10);
         $pdf->MultiCell(0, 5, wordwrap($signature['raw_signature'], 80, "\n", true), 0, 'L');
     }
+    
 
     private function formatCpfCnpj($value) {
         // Remove qualquer caractere não numérico

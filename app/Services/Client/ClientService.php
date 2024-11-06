@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Validator;
 
 class ClientService
 {
-
     public function search($request)
     {
         try {
@@ -60,7 +59,6 @@ class ClientService
             return ['status' => false, 'error' => $error->getMessage(), 'statusCode' => 400];
         }
     }
-
 
     public function update($request, $user_id)
     {
