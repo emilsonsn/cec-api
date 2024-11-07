@@ -90,10 +90,11 @@ class FileService
             $requestData['filename'] = $request->file('file')->getClientOriginalName();
 
             $path = $this->processFileAndStore($request);
-            $tempFilePath = storage_path("app/public/{$path}");
+            $FilePath = storage_path("app/public/{$path}");
 
-            $tempFilePath = $this->convertPdfToCompatibleFormat($tempFilePath);
-
+            $tempFilePath = $this->convertPdfToCompatibleFormat($FilePath);
+            unlink($FilePath);
+            
             $path = $this->addUserNameToPDF($tempFilePath, $auth->name, $request->positionX, $request->positionY, $request->page);
             unlink($tempFilePath);
 
@@ -132,13 +133,17 @@ class FileService
 
     private function convertPdfToCompatibleFormat($filePath)
     {
-        $outputPath = $filePath;
+        $outputPath = str_replace('.pdf', '_compatible.pdf', $filePath);
     
         $command = "gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -o " . escapeshellarg($outputPath) . " " . escapeshellarg($filePath);
         exec($command, $output, $returnVar);
     
         if ($returnVar !== 0) {
             throw new Exception("Erro ao converter o PDF para formato compatível: " . implode("\n", $output));
+        }
+    
+        if (!file_exists($outputPath)) {
+            throw new Exception("Erro: o arquivo PDF convertido não foi gerado.");
         }
     
         return $outputPath;
@@ -306,7 +311,6 @@ class FileService
         $pdf->SetFont('arial', '', 10);
         $pdf->MultiCell(0, 5, wordwrap($signature['raw_signature'], 80, "\n", true), 0, 'L');
     }
-    
 
     private function formatCpfCnpj($value) {
         // Remove qualquer caractere não numérico
