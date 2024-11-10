@@ -29,7 +29,7 @@
             font-size: 16px;
             margin-bottom: 20px;
         }
-        a {
+        a.linkBtn {
             display: inline-block;
             background-color: #0044cc;
             color: #fff;
@@ -38,8 +38,9 @@
             border-radius: 4px;
             font-size: 16px;
         }
-        a:hover {
+        a.linkBtn:hover {
             background-color: #003399;
+            color: #fff;
         }
         .footer {
             margin-top: 30px;
@@ -54,11 +55,11 @@
     <div class="email-container">
         <h1>Recuperação de Senha</h1>
         <p>Olá,</p>
-        <p>Você solicitou a recuperação de senha. Use o botão abaixo para redefinir sua senha:</p>
-        <p><a href="{{env('FRONT_URL') . '/password_recovery?code=' . $code }}">Recuperar Senha</a></p>
+        <p>Você solicitou a recuperação de senha do assinador do CEC. Clique no botão abaixo para redefinir sua senha:</p>
+        <p><a class="linkBtn" href="{{env('FRONT_URL') . '/password_recovery?code=' . $code }}">Recuperar Senha</a></p>
         <p>Se você não solicitou essa recuperação, por favor ignore este e-mail.</p>
         <div class="footer">
-            <p>© {{ date('Y') }} Andrade Engenharia. Todos os direitos reservados.</p>
+            <p>© {{ date('Y') }} © 2024 CEC Certificado Digital. Todos os direitos reservados.</p>
         </div>
     </div>
 </body>

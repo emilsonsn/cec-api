@@ -52,12 +52,14 @@
 <div class="container">
     <h1>E-mail Validado com Sucesso!</h1>
     <p>Seu e-mail foi validado com sucesso. Agora você pode começar a utilizar todos os recursos.</p>
-    <button onclick="fecharJanela()">Fechar</button>
+    <button onclick="goTologin()">Ir para login</button>
 </div>
 
 <script>
-    function fecharJanela() {
-        window.close();
+    const frontUrl = "{{ env('FRONT_URL') }}";
+    
+    function goTologin() {
+        window.location.href = frontUrl;
     }
 </script>
 

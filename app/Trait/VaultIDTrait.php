@@ -71,7 +71,7 @@ Trait VaultIDTrait
                 'hashes' => $hashes,
                 'include_chain' => true
             ]
-        ]);        
+        ]);
 
         return json_decode($response->getBody(), true);
     }

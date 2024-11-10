@@ -13,7 +13,7 @@ use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpWord\IOFactory;
 use Illuminate\Support\Str;
-
+use ZipArchive;
 
 class FileService
 {
@@ -51,7 +51,6 @@ class FileService
     public function create($request)
     {
         try {
-            Log::info('Pra testar o log');
             $rules = [
                 'positionX'         => 'nullable|numeric',
                 'positionY'         => 'nullable|numeric',
@@ -79,7 +78,7 @@ class FileService
             $requestData = $request->all();
             $requestData['user_id'] = $auth->id;
 
-            $uuid = (string) Str::uuid();
+            $uuid = substr(Str::uuid(), 0, 12);
 
             $validator = Validator::make($requestData, $rules);
 
@@ -90,35 +89,37 @@ class FileService
             $requestData['filename'] = $request->file('file')->getClientOriginalName();
 
             $path = $this->processFileAndStore($request);
-            $FilePath = storage_path("app/public/{$path}");
+            $storagePath = storage_path("app/public/{$path}");
 
-            $tempFilePath = $this->convertPdfToCompatibleFormat($FilePath);
-            unlink($FilePath);
+            $tempFilePath = $this->convertPdfToCompatibleFormat($storagePath);
+            unlink($storagePath);
             
-            $path = $this->addUserNameToPDF($tempFilePath, $auth->name, $request->positionX, $request->positionY, $request->page);
+            $pathWithUserName = $this->addUserNameToPDF($tempFilePath, $auth->name, $request->positionX, $request->positionY, $request->page);
             unlink($tempFilePath);
 
-            $signatureResponse = $this->generateSignature($request->input('access_token'), $request->input('certificate_alias'), $path, $uuid);
+            $signatureResponse = $this->generateSignature($request->input('access_token'), $request->input('certificate_alias'), $pathWithUserName, $uuid);
             if (!isset($signatureResponse['signatures']) && count($signatureResponse['signatures'])) {
                 throw new Exception('Erro ao assinar o documento: ' . $signatureResponse['error']);
             }
 
             $signature = $signatureResponse['signatures'][0]['raw_signature'];
             $assignId = $signatureResponse['signatures'][0]['id'];
-
-            $signatureData = [
-                'docName' => $requestData['filename'],
-                'uuid' => $uuid,
-                'raw_signature' => $signature,
-                'name' => $auth->name,
-                'cpf_cnpj' => $this->formatCpfCnpj($auth->cpf_cnpj),
-                'date' => Carbon::now()->format('d M Y \à\s H:i:s'),
-            ];
             
-            $signedFilePath = $this->addSignatureToPDF($path, $signatureData);
-            unlink($path);
+            $outputPath = storage_path("app/public/files_assign/" . str_replace('.pdf', $uuid . '.pdf',$requestData['filename']));
 
-            $requestData['path'] = $signedFilePath;
+            if (!file_exists(dirname($outputPath))) {
+                mkdir(dirname(storage_path("app/{$outputPath}")), 0755, true);
+            }
+
+            if (!rename($pathWithUserName, $outputPath)) {
+                throw new Exception('Não foi possível mover o arquivo para o novo caminho.');
+            }
+
+            $p7sOutputPath = $this->createP7sCertificate($outputPath, $signature);
+
+            $zipName = $this->zipArchives($outputPath, $p7sOutputPath);
+
+            $requestData['path'] = $zipName;
             $requestData['signature'] = $signature;
             $requestData['uuid'] = $uuid;
             $requestData['assign_id'] = $assignId;            
@@ -133,7 +134,8 @@ class FileService
 
     private function convertPdfToCompatibleFormat($filePath)
     {
-        $outputPath = str_replace('.pdf', '_compatible.pdf', $filePath);
+        $randomString = Str::random(4);
+        $outputPath = str_replace('.pdf', "$randomString.pdf", $filePath);
     
         $command = "gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -o " . escapeshellarg($outputPath) . " " . escapeshellarg($filePath);
         exec($command, $output, $returnVar);
@@ -149,7 +151,6 @@ class FileService
         return $outputPath;
     }
     
-
     public function generateSignature($accessToken, $certificateAlias, $filePath, $uuid)
     {
         $hash = hash_file('sha256', $filePath);
@@ -238,78 +239,33 @@ class FileService
         return $tempFilePath;
     }
 
-    private function addSignatureToPDF($filePath, $signature)
+    private function zipArchives($outputPath, $p7sOutputPath)
     {
-        if (!file_exists($filePath)) {
-            throw new Exception("Arquivo PDF não encontrado: {$filePath}");
+        $date = Carbon::now()->format('Y_m_d_H_i_s');
+        $zipFileName = 'assinatura_' . $date . '_' . Str::random(8) . '.zip';
+        $zipFilePath = storage_path("app/public/files_assign/{$zipFileName}");
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipFilePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
+            $zip->addFile($outputPath, basename($outputPath));
+            $zip->addFile($p7sOutputPath, basename($p7sOutputPath));
+            $zip->close();
+        } else {
+            throw new Exception('Não foi possível criar o arquivo zip.');
         }
 
-        $pdf = new Fpdi();
-        $pageCount = $pdf->setSourceFile($filePath);
+        unlink($outputPath);
+        unlink($p7sOutputPath);
 
-        for ($i = 1; $i <= $pageCount; $i++) {
-            $pdf->AddPage();
-            $tplIdx = $pdf->importPage($i);
-            $pdf->useTemplate($tplIdx);
-        }
-
-        $this->addSignaturePage($pdf, $signature);
-
-        $uniqueFileName = Str::random(40) . '.pdf';
-        $newFilePath = storage_path('app/public/files_assign/' . basename($uniqueFileName));
-
-        $directory = dirname($newFilePath);
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-
-        $pdf->Output($newFilePath, 'F');
-        return $uniqueFileName;
+        return $zipFileName;
     }
 
-    private function addSignaturePage($pdf, $signature)
-    {
-        $pdf->AddPage();
-
-        // Posiciona o logo
-        $pdf->Image(resource_path('images/cec-logo.png'), 10, 10, 40);
-
-        // Configura a fonte personalizada
-        $pdf->AddFont('arial', '', 'arial.php');
-        $pdf->AddFont('arial', 'B', 'arialb.php');
-
-        // Nome do documento com `MultiCell` para quebrar o texto longo
-        $pdf->SetXY(55, 10); // Ajuste a posição para o lado direito da imagem
-        $pdf->SetFont('arial', 'B', 14);
-        $pdf->MultiCell(0, 8, mb_convert_encoding($signature['docName'], 'ISO-8859-1', 'UTF-8'), 0, 'C');
-
-        // UUID do documento
-        $pdf->SetFont('arial', '', 10);
-        $pdf->Cell(0, 8, "CECID da assinatura: {$signature['uuid']}", 0, 1, 'C');
-
-        $pdf->Ln(10); // Espaço
-
-        // Seção de assinatura
-        $pdf->SetFont('arial', 'B', 12);
-        $pdf->Cell(0, 10, 'Assinatura:', 0, 1);
-
-        $pdf->SetFont('arial', '', 10);
-        
-        $cpfCnpj = $signature['cpf_cnpj'];
-        $label = strlen($cpfCnpj) === 14 ? ' - CPF: ' : ' - CNPJ: ';
-
-        $pdf->Cell(0, 6, mb_convert_encoding($signature['name'] . $label . $cpfCnpj, 'ISO-8859-1', 'UTF-8'), 0, 1);
-
-        $pdf->Cell(0, 6, mb_convert_encoding('Assinou em ' . $signature['date'], 'ISO-8859-1', 'UTF-8'), 0, 1);
-
-        $pdf->Ln(10); // Espaço adicional
-
-        // Seção de assinatura digital
-        $pdf->SetFont('arial', 'B', 12);
-        $pdf->Cell(0, 10, 'Assinatura digital:', 0, 1);
-
-        $pdf->SetFont('arial', '', 10);
-        $pdf->MultiCell(0, 5, wordwrap($signature['raw_signature'], 80, "\n", true), 0, 'L');
+    private function createP7sCertificate($outputPath, $signature){
+        $outputFileName = str_replace('.pdf', '', explode('files_assign/', $outputPath)[1]);
+        $p7sOutputPath = storage_path("app/public/files_assign/ASSINATURA_DESTACADA_$outputFileName.p7s");
+        $signatureClean = str_replace(["-----BEGIN PKCS7-----", "-----END PKCS7-----"], "", $signature);
+        file_put_contents($p7sOutputPath, base64_decode($signatureClean));
+        return $p7sOutputPath;
     }
 
     private function formatCpfCnpj($value) {
@@ -327,5 +283,4 @@ class FileService
         // Retorna o valor sem formatação se não for CPF nem CNPJ
         return $value;
     }
-
 }
