@@ -13,7 +13,7 @@ class DeleteOldFiles extends Command
      *
      * @var string
      */
-    protected $signature = 'app:delete-old-files';
+    protected $signature = 'app:delete-all-files';
 
     /**
      * The console command description.
@@ -29,18 +29,12 @@ class DeleteOldFiles extends Command
     {
         $directory = 'public/files_assign';
         $files = Storage::files($directory);
-        
-        $now = Carbon::now();
 
         foreach ($files as $file) {
-            $lastModified = Carbon::createFromTimestamp(Storage::lastModified($file));
-
-            if ($lastModified->diffInDays($now) >= 30) {
-                Storage::delete($file);
-                $this->info("Deleted: $file");
-            }
+            Storage::delete($file);
+            $this->info("Deleted: $file");
         }
 
-        $this->info("Old files deletion process completed.");
+        $this->info("All files deletion process completed.");
     }
 }
