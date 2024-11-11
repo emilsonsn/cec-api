@@ -16,6 +16,13 @@ class Setting extends Model
 
     protected $fillable = [
         'limit',
+        'display'
     ];
 
+    public function getDisplayAttribute()
+    {
+        if(isset($this->attributes['display']) && $this->attributes['display']){
+            return env('APP_URL') . '/storage/display/' . $this->attributes['display'];
+        }
+    }
 }
