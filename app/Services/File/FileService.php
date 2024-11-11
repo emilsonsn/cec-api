@@ -93,8 +93,8 @@ class FileService
 
             $tempFilePath = $this->convertPdfToCompatibleFormat($storagePath);
             unlink($storagePath);
-            
-            $pathWithUserName = $this->addUserNameToPDF($tempFilePath, $auth->name, $request->positionX, $request->positionY, $request->page);
+            // $filePath, $name, $cpfCnpj, $positionXPercent, $positionYPercent, $page
+            $pathWithUserName = $this->addSignatureBlockToPDF($tempFilePath, $auth->name, $auth->cpf_cnpj, $request->positionX, $request->positionY, $request->page);
             unlink($tempFilePath);
 
             $signatureResponse = $this->generateSignature($request->input('access_token'), $request->input('certificate_alias'), $pathWithUserName, $uuid);
@@ -199,7 +199,47 @@ class FileService
         return $pdfFilePath;
     }
 
-    private function addUserNameToPDF($filePath, $name, $positionXPercent, $positionYPercent, $page)
+    // private function addUserNameToPDF($filePath, $name, $positionXPercent, $positionYPercent, $page)
+    // {
+    //     define('FPDF_FONTPATH', resource_path('fonts/'));
+
+    //     if (!file_exists($filePath)) {
+    //         throw new Exception("Arquivo PDF não encontrado: {$filePath}");
+    //     }
+
+    //     $pdf = new Fpdi();
+
+    //     $pageCount = $pdf->setSourceFile($filePath);
+
+    //     $pdf->AddFont('Handwritten', '', 'handwriting.php'); // Sem o caminho completo
+    
+    //     for ($i = 1; $i <= $pageCount; $i++) {
+    //         $pdfWidth = $pdf->getTemplateSize($pdf->importPage(1))['width'];
+    //         $pdfHeight = $pdf->getTemplateSize($pdf->importPage(1))['height'];
+        
+    //         $positionX = ($positionXPercent / 100) * $pdfWidth - 2;
+    //         $positionY = (($positionYPercent / 100) * $pdfHeight) + 4;
+
+    //         $pdf->AddPage();
+    //         $tplIdx = $pdf->importPage($i);
+    //         $pdf->useTemplate($tplIdx);
+    
+    //         if ($i == $page) {
+    //             $pdf->SetFont('Handwritten', '', 24);
+    //             $pdf->SetTextColor(50, 50, 50);
+    //             $pdf->SetXY($positionX, $positionY);
+    //             $pdf->Write(0, $name);
+    //         }
+    //     }
+    
+    //     $tempFilePath = str_replace('.pdf', '_temp.pdf', $filePath);
+    //     $pdf->Output($tempFilePath, 'F');
+    //     unset($GLOBALS['FPDF_FONTPATH']);
+
+    //     return $tempFilePath;
+    // }
+
+    private function addSignatureBlockToPDF($filePath, $name, $cpfCnpj, $positionXPercent, $positionYPercent, $page)
     {
         define('FPDF_FONTPATH', resource_path('fonts/'));
 
@@ -208,33 +248,47 @@ class FileService
         }
 
         $pdf = new Fpdi();
-
         $pageCount = $pdf->setSourceFile($filePath);
 
-        $pdf->AddFont('Handwritten', '', 'handwriting.php'); // Sem o caminho completo
-    
-        for ($i = 1; $i <= $pageCount; $i++) {
-            $pdfWidth = $pdf->getTemplateSize($pdf->importPage(1))['width'];
-            $pdfHeight = $pdf->getTemplateSize($pdf->importPage(1))['height'];
-        
-            $positionX = ($positionXPercent / 100) * $pdfWidth - 2;
-            $positionY = (($positionYPercent / 100) * $pdfHeight) + 4;
+        $pdf->AddFont('Arial', '', 'arial.php');
+        $pdf->AddFont('Arial', 'B', 'arialb.php');
 
-            $pdf->AddPage();
+
+        for ($i = 1; $i <= $pageCount; $i++) {
             $tplIdx = $pdf->importPage($i);
+            $pdf->AddPage();
             $pdf->useTemplate($tplIdx);
-    
+
+            // Adiciona a assinatura somente na página especificada
             if ($i == $page) {
-                $pdf->SetFont('Handwritten', '', 24);
-                $pdf->SetTextColor(50, 50, 50);
-                $pdf->SetXY($positionX, $positionY);
-                $pdf->Write(0, $name);
+                // Calcula a posição em pixels
+                $pdfWidth = $pdf->getTemplateSize($tplIdx)['width'];
+                $pdfHeight = $pdf->getTemplateSize($tplIdx)['height'];
+                $positionX = ($positionXPercent / 100) * $pdfWidth;
+                $positionY = ($positionYPercent / 100) * $pdfHeight;
+
+                // Adiciona a imagem da logo
+                $pdf->Image(resource_path('images/cec-logo-sem-fundo.png'), $positionX, $positionY, 20);
+
+                // Define o texto do nome e CPF/CNPJ
+                $pdf->SetXY($positionX + 20, $positionY + 2);
+                $pdf->SetFont('Arial', 'B', 9);
+                $pdf->Write(5, $name);
+
+                $pdf->SetXY($positionX + 20, $positionY + 6);
+                $pdf->SetFont('Arial', 'B', 8);
+                $pdf->Write(5, $cpfCnpj);
+
+                // Texto informativo
+                $pdf->SetXY($positionX, $positionY + 10);
+                $pdf->SetFont('Arial', '', 6);
+                $pdf->Write(5, 'Assinado digitalmente no certificadodigitalcec.com.br');
             }
         }
-    
-        $tempFilePath = str_replace('.pdf', '_temp.pdf', $filePath);
+
+        // Salva o arquivo temporário com a assinatura adicionada
+        $tempFilePath = str_replace('.pdf', '_signed.pdf', $filePath);
         $pdf->Output($tempFilePath, 'F');
-        unset($GLOBALS['FPDF_FONTPATH']);
 
         return $tempFilePath;
     }

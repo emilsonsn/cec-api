@@ -16,6 +16,7 @@ class Setting extends Model
 
     protected $fillable = [
         'limit',
+        'url',
         'display'
     ];
 

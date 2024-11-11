@@ -26,6 +26,7 @@ class SettingService
         try {
             $rules = [
                 'limit' => 'required|integer',
+                'url' => 'required|string',
                 'display' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ];
     
