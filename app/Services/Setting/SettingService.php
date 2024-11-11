@@ -3,6 +3,7 @@
 namespace App\Services\Setting;
 
 use App\Models\Setting;
+use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -47,6 +48,11 @@ class SettingService
             }
     
             $settingToUpdate->update($dataToUpdate);
+
+            User::whereNotNull('limit')
+                ->update([
+                    'limit' => $dataToUpdate['limit']
+                ]);
 
             return ['status' => true, 'data' => $settingToUpdate];
         } catch (Exception $error) {
