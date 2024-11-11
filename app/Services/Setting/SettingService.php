@@ -49,9 +49,9 @@ class SettingService
     
             $settingToUpdate->update($dataToUpdate);
 
-            User::whereNotNull('limit')
+            User::whereNotNull('file_limit')
                 ->update([
-                    'limit' => $dataToUpdate['limit']
+                    'file_limit' => $dataToUpdate['limit']
                 ]);
 
             return ['status' => true, 'data' => $settingToUpdate];
