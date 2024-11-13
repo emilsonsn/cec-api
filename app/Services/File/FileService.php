@@ -253,6 +253,8 @@ class FileService
         $pdf->AddFont('Arial', '', 'arial.php');
         $pdf->AddFont('Arial', 'B', 'arialb.php');
 
+        $ActualData = 'Data: ' . Carbon::now()->format('d/m/Y H:i:s') .'-0300' ;
+
 
         for ($i = 1; $i <= $pageCount; $i++) {
             $tplIdx = $pdf->importPage($i);
@@ -270,19 +272,24 @@ class FileService
                 // Adiciona a imagem da logo
                 $pdf->Image(resource_path('images/cec-logo-sem-fundo.png'), $positionX, $positionY, 20);
 
+                // Texto informativo
+                $pdf->SetXY($positionX + 20, $positionY - 2);
+                $pdf->SetFont('Arial', '', 6);
+                $pdf->Write(5, 'Documento assinado digitalmente');
+
                 // Define o texto do nome e CPF/CNPJ
                 $pdf->SetXY($positionX + 20, $positionY + 2);
                 $pdf->SetFont('Arial', 'B', 9);
                 $pdf->Write(5, $name);
 
                 $pdf->SetXY($positionX + 20, $positionY + 6);
-                $pdf->SetFont('Arial', 'B', 8);
-                $pdf->Write(5, $cpfCnpj);
+                $pdf->SetFont('Arial', '', 7);
+                $pdf->Write(5, $ActualData);
 
-                // Texto informativo
                 $pdf->SetXY($positionX, $positionY + 10);
                 $pdf->SetFont('Arial', '', 6);
-                $pdf->Write(5, 'Assinado digitalmente no certificadodigitalcec.com.br');
+                $pdf->Write(5, 'Valide com a assinatura destacada em: https://validar.iti.gov.br/');
+
             }
         }
 
